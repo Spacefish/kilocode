@@ -23,6 +23,7 @@ import {
   LoggingMessageNotificationSchema,
   type Tool as MCPToolDef,
   ToolListChangedNotificationSchema,
+  TaskStatusNotificationSchema, // kilocode_change
 } from "@modelcontextprotocol/sdk/types.js"
 import { Config } from "@/config/config"
 import { ConfigMCPV1 } from "@opencode-ai/core/v1/config/mcp"
@@ -59,7 +60,7 @@ const CLIENT_OPTIONS = {
     // Upstream issue anomalyco/opencode#2308 // kilocode_change
     roots: {},
     // Upstream issue anomalyco/opencode#28567 // kilocode_change
-    // tasks: {},
+    tasks: {},
   },
 } satisfies ClientOptions
 
@@ -91,6 +92,8 @@ export const ToolsChanged = McpEvent.ToolsChanged
 export const BrowserOpenFailed = McpEvent.BrowserOpenFailed
 
 export const AuthUrl = McpEvent.AuthUrl // kilocode_change
+
+export const TaskStatus = McpEvent.TaskStatus // kilocode_change
 
 export const Failed = NamedError.create("MCPFailed", {
   name: Schema.String,
@@ -375,7 +378,8 @@ const layer = Layer.effect(
               (authProvider && (lastError.message.includes("OAuth") || authFailure(lastError.message)))
             // kilocode_change end
 
-            if (isAuthError && authProvider) { // kilocode_change
+            if (isAuthError && authProvider) {
+              // kilocode_change
               if (lastError.message.includes("registration") || lastError.message.includes("client_id")) {
                 lastStatus = {
                   status: "needs_client_registration" as const,
@@ -546,6 +550,34 @@ const layer = Layer.effect(
       client.setNotificationHandler(LoggingMessageNotificationSchema, (notification) =>
         bridge.promise(serverLog(name, notification.params)),
       )
+
+      // kilocode_change start - surface MCP Tasks status pushes without polling
+      client.setNotificationHandler(TaskStatusNotificationSchema, async (notification) => {
+        const task = notification.params
+        await bridge.promise(
+          events
+            .publish(TaskStatus, {
+              server: name,
+              taskId: task.taskId,
+              status: task.status,
+              statusMessage: task.statusMessage,
+            })
+            .pipe(
+              Effect.andThen(
+                task.status === "completed" || task.status === "failed" || task.status === "cancelled"
+                  ? events.publish(TuiEvent.ToastShow, {
+                      title: `MCP task ${task.status}`,
+                      message: task.statusMessage ?? `Task ${task.taskId} on "${name}" ${task.status}`,
+                      variant: task.status === "completed" ? "success" : task.status === "failed" ? "error" : "info",
+                      duration: 5000,
+                    })
+                  : Effect.void,
+              ),
+              Effect.ignore,
+            ),
+        )
+      })
+      // kilocode_change end
 
       if (!client.getServerCapabilities()?.tools) return
       client.setNotificationHandler(ToolListChangedNotificationSchema, async () => {
