@@ -90,3 +90,9 @@ test("runs a task-capable tool end to end against a real task server", async () 
   await client.close()
   await server.close()
 })
+
+test("MCP.TaskStatus event is registered", async () => {
+  const { McpEvent } = await import("@opencode-ai/schema/mcp-event")
+  expect(McpEvent.TaskStatus.type).toBe("mcp.task.status")
+  expect(McpEvent.Definitions).toContain(McpEvent.TaskStatus)
+})

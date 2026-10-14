@@ -78,6 +78,7 @@ export type Event =
   | EventMcpToolsChanged1
   | EventMcpBrowserOpenFailed1
   | EventMcpAuthUrl1
+  | EventMcpTaskStatus1
   | EventCommandExecuted1
   | EventProjectUpdated1
   | EventSessionStatus1
@@ -198,6 +199,7 @@ export type Event =
   | EventMcpToolsChanged
   | EventMcpBrowserOpenFailed
   | EventMcpAuthUrl
+  | EventMcpTaskStatus
   | EventCommandExecuted
   | EventProjectUpdated
   | EventSessionStatus
@@ -1248,6 +1250,7 @@ export type GlobalEvent = {
     | EventMcpToolsChanged
     | EventMcpBrowserOpenFailed
     | EventMcpAuthUrl
+    | EventMcpTaskStatus
     | EventCommandExecuted
     | EventProjectUpdated
     | EventSessionStatus
@@ -2010,6 +2013,16 @@ export type GlobalEvent = {
         properties: {
           mcpName: string
           url: string
+        }
+      }
+    | {
+        id: string
+        type: "mcp.task.status"
+        properties: {
+          server: string
+          taskId: string
+          status: string
+          statusMessage?: string
         }
       }
     | {
@@ -5078,6 +5091,7 @@ export type V2Event =
   | McpToolsChanged
   | McpBrowserOpenFailed
   | McpAuthUrl
+  | McpTaskStatus
   | CommandExecuted
   | ProjectUpdated
   | SessionStatus2
@@ -6359,6 +6373,17 @@ export type EventMcpAuthUrl = {
   properties: {
     mcpName: string
     url: string
+  }
+}
+
+export type EventMcpTaskStatus = {
+  id: string
+  type: "mcp.task.status"
+  properties: {
+    server: string
+    taskId: string
+    status: string
+    statusMessage?: string
   }
 }
 
@@ -9294,6 +9319,26 @@ export type McpAuthUrl = {
   }
 }
 
+export type McpTaskStatus = {
+  id: string
+  metadata?: {
+    [key: string]: unknown
+  }
+  type: "mcp.task.status"
+  durable?: {
+    aggregateID: string
+    seq: number
+    version: number
+  }
+  location?: LocationRef
+  data: {
+    server: string
+    taskId: string
+    status: string
+    statusMessage?: string
+  }
+}
+
 export type CommandExecuted = {
   id: string
   metadata?: {
@@ -10481,6 +10526,17 @@ export type EventMcpAuthUrl1 = {
   properties: {
     mcpName: string
     url: string
+  }
+}
+
+export type EventMcpTaskStatus1 = {
+  id: string
+  type: "mcp.task.status"
+  properties: {
+    server: string
+    taskId: string
+    status: string
+    statusMessage?: string
   }
 }
 

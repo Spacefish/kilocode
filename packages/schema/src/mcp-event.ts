@@ -27,5 +27,15 @@ export const AuthUrl = Event.define({
   },
 })
 
-export const Definitions = Event.inventory(ToolsChanged, BrowserOpenFailed, AuthUrl)
+export const TaskStatus = Event.define({
+  type: "mcp.task.status",
+  schema: {
+    server: Schema.String,
+    taskId: Schema.String,
+    status: Schema.String,
+    statusMessage: Schema.optional(Schema.String),
+  },
+})
+
+export const Definitions = Event.inventory(ToolsChanged, BrowserOpenFailed, AuthUrl, TaskStatus)
 // kilocode_change end

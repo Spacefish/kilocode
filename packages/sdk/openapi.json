@@ -11909,21 +11909,35 @@
             }
           },
           "400": {
-            "description": "Bad request",
+            "description": "ConfigOverlayWriteError | InvalidRequestError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/BadRequestError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ConfigOverlayWriteError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/InvalidRequestError"
+                    }
+                  ]
                 }
               }
             }
           },
           "409": {
-            "description": "ConfigOverlayConflictError",
+            "description": "ConfigOverlayConflictError | ConfigOverlayShadowedError",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ConfigOverlayConflictError"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ConfigOverlayConflictError"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ConfigOverlayShadowedError"
+                    }
+                  ]
                 }
               }
             }
@@ -27784,6 +27798,9 @@
             "$ref": "#/components/schemas/EventMcpAuthUrl1"
           },
           {
+            "$ref": "#/components/schemas/EventMcpTaskStatus1"
+          },
+          {
             "$ref": "#/components/schemas/EventCommandExecuted1"
           },
           {
@@ -28142,6 +28159,9 @@
           },
           {
             "$ref": "#/components/schemas/EventMcpAuthUrl"
+          },
+          {
+            "$ref": "#/components/schemas/EventMcpTaskStatus"
           },
           {
             "$ref": "#/components/schemas/EventCommandExecuted"
@@ -31284,6 +31304,9 @@
                 "$ref": "#/components/schemas/EventMcpAuthUrl"
               },
               {
+                "$ref": "#/components/schemas/EventMcpTaskStatus"
+              },
+              {
                 "$ref": "#/components/schemas/EventCommandExecuted"
               },
               {
@@ -33906,6 +33929,40 @@
                       }
                     },
                     "required": ["mcpName", "url"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["id", "type", "properties"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^evt_"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": ["mcp.task.status"]
+                  },
+                  "properties": {
+                    "type": "object",
+                    "properties": {
+                      "server": {
+                        "type": "string"
+                      },
+                      "taskId": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string"
+                      },
+                      "statusMessage": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["server", "taskId", "status"],
                     "additionalProperties": false
                   }
                 },
@@ -40151,6 +40208,53 @@
         "required": ["code", "message", "target"],
         "additionalProperties": false
       },
+      "ConfigOverlayShadowedError": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "shadowedBy": {
+            "type": "string"
+          }
+        },
+        "required": ["message", "path"],
+        "additionalProperties": false
+      },
+      "ConfigOverlayWriteError": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "message": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": ["message", "path"]
+            }
+          }
+        },
+        "required": ["message"],
+        "additionalProperties": false
+      },
       "ConfigRulesResponse": {
         "type": "object",
         "properties": {
@@ -43204,6 +43308,9 @@
           },
           {
             "$ref": "#/components/schemas/McpAuthUrl"
+          },
+          {
+            "$ref": "#/components/schemas/McpTaskStatus"
           },
           {
             "$ref": "#/components/schemas/CommandExecuted"
@@ -47765,6 +47872,39 @@
               }
             },
             "required": ["mcpName", "url"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "EventMcpTaskStatus": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["mcp.task.status"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "server": {
+                "type": "string"
+              },
+              "taskId": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "statusMessage": {
+                "type": "string"
+              }
+            },
+            "required": ["server", "taskId", "status"],
             "additionalProperties": false
           }
         },
@@ -56655,6 +56795,62 @@
         "required": ["id", "type", "data"],
         "additionalProperties": false
       },
+      "McpTaskStatus": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["mcp.task.status"]
+          },
+          "durable": {
+            "type": "object",
+            "properties": {
+              "aggregateID": {
+                "type": "string"
+              },
+              "seq": {
+                "type": "integer"
+              },
+              "version": {
+                "type": "integer"
+              }
+            },
+            "required": ["aggregateID", "seq", "version"],
+            "additionalProperties": false
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationRef"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "server": {
+                "type": "string"
+              },
+              "taskId": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "statusMessage": {
+                "type": "string"
+              }
+            },
+            "required": ["server", "taskId", "status"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "data"],
+        "additionalProperties": false
+      },
       "CommandExecuted": {
         "type": "object",
         "properties": {
@@ -60236,6 +60432,40 @@
               }
             },
             "required": ["mcpName", "url"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["id", "type", "properties"],
+        "additionalProperties": false
+      },
+      "EventMcpTaskStatus1": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["mcp.task.status"]
+          },
+          "properties": {
+            "type": "object",
+            "properties": {
+              "server": {
+                "type": "string"
+              },
+              "taskId": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "statusMessage": {
+                "type": "string"
+              }
+            },
+            "required": ["server", "taskId", "status"],
             "additionalProperties": false
           }
         },
