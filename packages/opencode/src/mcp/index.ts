@@ -59,7 +59,7 @@ const CLIENT_OPTIONS = {
     // Upstream issue anomalyco/opencode#2308 // kilocode_change
     roots: {},
     // Upstream issue anomalyco/opencode#28567 // kilocode_change
-    // tasks: {},
+    tasks: {},
   },
 } satisfies ClientOptions
 

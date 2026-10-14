@@ -3,6 +3,7 @@ import {
   CallToolResultSchema,
   ListToolsResultSchema,
   ToolSchema,
+  type CallToolResult, // kilocode_change
   type Tool as MCPToolDef,
 } from "@modelcontextprotocol/sdk/types.js"
 import { dynamicTool, jsonSchema, type JSONSchema7, type Tool } from "ai"
@@ -39,6 +40,35 @@ export function defs(client: Client, timeout?: number) {
   return listTools(client, timeout ?? DEFAULT_TIMEOUT).pipe(Effect.catch(() => Effect.void))
 }
 
+// kilocode_change start - MCP Tasks extension
+function supportsTasks(mcpTool: MCPToolDef, client: Client) {
+  const support = mcpTool.execution?.taskSupport
+  if (support !== "optional" && support !== "required") return false
+  return !!client.getServerCapabilities?.()?.tasks?.requests?.tools?.call
+}
+
+// Runs a tool as an MCP task so long-running work is tracked via task status updates instead of one blocking request.
+async function callTask(
+  client: Client,
+  params: { name: string; arguments: Record<string, unknown> },
+  options: { signal?: AbortSignal; timeout?: number },
+) {
+  const stream = client.experimental.tasks.callToolStream(params, CallToolResultSchema, {
+    resetTimeoutOnProgress: true,
+    signal: options.signal,
+    timeout: options.timeout,
+    task: {},
+  })
+  for await (const msg of stream) {
+    if (msg.type === "error") throw msg.error
+    if (msg.type === "result") return msg.result as CallToolResult
+    if (msg.type === "taskStatus" && msg.task.status === "cancelled") throw new Error("MCP task was cancelled")
+  }
+  throw new Error("MCP task ended without a result")
+}
+
+// kilocode_change end
+
 export function convertTool(mcpTool: MCPToolDef, client: Client, timeout?: number): Tool {
   const inputSchema: JSONSchema7 = {
     ...(mcpTool.inputSchema as JSONSchema7),
@@ -51,20 +81,18 @@ export function convertTool(mcpTool: MCPToolDef, client: Client, timeout?: numbe
     description: mcpTool.description ?? "",
     inputSchema: jsonSchema(inputSchema),
     execute: async (args: unknown, options) => {
-      const result = await client.callTool(
-        {
-          name: mcpTool.name,
-          arguments: (args || {}) as Record<string, unknown>,
-        },
-        CallToolResultSchema,
-        {
-          resetTimeoutOnProgress: true,
-          signal: options.abortSignal,
-          timeout,
-          // The MCP SDK only sends a progress token when this hook is present, enabling timeout resets.
-          onprogress: () => {},
-        },
-      )
+      // kilocode_change start
+      const params = { name: mcpTool.name, arguments: (args || {}) as Record<string, unknown> }
+      const result = supportsTasks(mcpTool, client)
+        ? await callTask(client, params, { signal: options.abortSignal, timeout })
+        : await client.callTool(params, CallToolResultSchema, {
+            resetTimeoutOnProgress: true,
+            signal: options.abortSignal,
+            timeout,
+            // The MCP SDK only sends a progress token when this hook is present, enabling timeout resets.
+            onprogress: () => {},
+          })
+      // kilocode_change end
       if (result.isError)
         throw new Error(
           result.content

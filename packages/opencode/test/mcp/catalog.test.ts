@@ -50,6 +50,50 @@ describe("McpCatalog.convertTool", () => {
   })
 })
 
+describe("McpCatalog.convertTool tasks", () => {
+  const taskTool = () => ({ ...mcpTool(), execution: { taskSupport: "optional" } })
+  const stream = (messages: unknown[]) =>
+    ({
+      getServerCapabilities: () => ({ tasks: { requests: { tools: { call: {} } } } }),
+      callTool: async () => {
+        throw new Error("should not call callTool")
+      },
+      experimental: {
+        tasks: {
+          callToolStream: async function* () {
+            yield* messages
+          },
+        },
+      },
+    }) as unknown as Client
+
+  test("uses task streaming and returns the final result", async () => {
+    const content = [{ type: "text" as const, text: "done" }]
+    const client = stream([
+      { type: "taskCreated", task: { taskId: "t1", status: "working" } },
+      { type: "taskStatus", task: { taskId: "t1", status: "working" } },
+      { type: "result", result: { content } },
+    ])
+    const output = await McpCatalog.convertTool(taskTool(), client).execute?.({}, options)
+    expect(output).toMatchObject({ content })
+  })
+
+  test("rejects when the task is cancelled", async () => {
+    const client = stream([{ type: "taskStatus", task: { taskId: "t1", status: "cancelled" } }])
+    await expect(McpCatalog.convertTool(taskTool(), client).execute?.({}, options)).rejects.toThrow("cancelled")
+  })
+
+  test("falls back to callTool when the tool does not declare task support", async () => {
+    const content = [{ type: "text" as const, text: "plain" }]
+    const client = {
+      getServerCapabilities: () => ({ tasks: { requests: { tools: { call: {} } } } }),
+      callTool: async () => ({ content }),
+    } as unknown as Client
+    const output = await McpCatalog.convertTool(mcpTool(), client).execute?.({}, options)
+    expect(output).toMatchObject({ content })
+  })
+})
+
 test("preserves output schema validation across paginated tool discovery", async () => {
   const server = new Server({ name: "pagination", version: "1.0.0" }, { capabilities: { tools: {} } })
   server.setRequestHandler(ListToolsRequestSchema, ({ params }) =>
